@@ -338,6 +338,128 @@ Based on the above data, provide a comprehensive incident analysis following you
     return response.choices[0].message.content.strip()
 
 
+HTML_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incident Insight Agent</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+.header{background:linear-gradient(135deg,#1e293b,#334155);padding:20px 32px;border-bottom:1px solid #334155;display:flex;align-items:center;gap:16px}
+.header h1{font-size:24px;font-weight:700;color:#f8fafc}
+.header .badge{background:#22d3ee;color:#0f172a;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600}
+.main{flex:1;display:flex;flex-direction:column;max-width:960px;width:100%;margin:0 auto;padding:24px}
+.messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding-bottom:24px}
+.msg{padding:16px 20px;border-radius:12px;max-width:100%;line-height:1.7;font-size:14px;white-space:pre-wrap;word-wrap:break-word}
+.msg.user{background:#1e40af;color:#e0f2fe;align-self:flex-end;max-width:70%;border-bottom-right-radius:4px}
+.msg.bot{background:#1e293b;border:1px solid #334155;align-self:flex-start;border-bottom-left-radius:4px}
+.msg.bot h3{color:#22d3ee;margin:12px 0 6px;font-size:15px}
+.msg.bot h4{color:#94a3b8;margin:8px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+.msg.bot strong{color:#f8fafc}
+.msg.bot ul,.msg.bot ol{margin-left:20px;margin-top:4px}
+.msg.bot table{border-collapse:collapse;margin:8px 0;width:100%}
+.msg.bot th,.msg.bot td{border:1px solid #475569;padding:6px 10px;text-align:left;font-size:13px}
+.msg.bot th{background:#334155;color:#cbd5e1}
+.msg.bot a{color:#38bdf8;text-decoration:none}
+.msg.bot a:hover{text-decoration:underline}
+.meta{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+.meta span{background:#334155;padding:4px 10px;border-radius:6px;font-size:11px;color:#94a3b8}
+.input-area{background:#1e293b;border-top:1px solid #334155;padding:16px 24px}
+.input-wrap{max-width:960px;margin:0 auto;display:flex;gap:12px}
+.input-wrap input{flex:1;background:#0f172a;border:1px solid #475569;border-radius:10px;padding:12px 16px;color:#f8fafc;font-size:15px;outline:none;transition:border-color .2s}
+.input-wrap input:focus{border-color:#22d3ee}
+.input-wrap button{background:#22d3ee;color:#0f172a;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s}
+.input-wrap button:hover{background:#06b6d4}
+.input-wrap button:disabled{background:#475569;cursor:not-allowed}
+.loading{display:inline-block;width:20px;height:20px;border:3px solid #475569;border-top-color:#22d3ee;border-radius:50%;animation:spin .8s linear infinite;margin:8px 0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.suggestions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.suggestions button{background:#1e293b;border:1px solid #475569;color:#94a3b8;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s}
+.suggestions button:hover{border-color:#22d3ee;color:#22d3ee}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Incident Insight Agent</h1>
+<span class="badge">Jira + Confluence + AI</span>
+</div>
+<div class="main">
+<div class="messages" id="messages">
+<div class="msg bot">Welcome! I analyze incidents from Jira and Confluence to identify patterns, root causes, and solutions. Try one of the suggestions below or type your own query.</div>
+<div class="suggestions" id="suggestions">
+<button onclick="ask(this.textContent)">Summarize all incidents from the last 7 days</button>
+<button onclick="ask(this.textContent)">Analyze payment-related issues in the last 14 days</button>
+<button onclick="ask(this.textContent)">What are the top critical bugs this week?</button>
+</div>
+</div>
+</div>
+<div class="input-area">
+<div class="input-wrap">
+<input type="text" id="input" placeholder="Ask about incidents... (e.g., 'Summarize incidents in the last 7 days')" onkeydown="if(event.key==='Enter')send()">
+<button id="btn" onclick="send()">Analyze</button>
+</div>
+</div>
+<script>
+function md(s){
+  s=s.replace(/^### (.*$)/gm,'<h3>$1</h3>');
+  s=s.replace(/^## (.*$)/gm,'<h3>$1</h3>');
+  s=s.replace(/^#### (.*$)/gm,'<h4>$1</h4>');
+  s=s.replace(/\\*\\*(.+?)\\*\\*/g,'<strong>$1</strong>');
+  s=s.replace(/\\*(.+?)\\*/g,'<em>$1</em>');
+  s=s.replace(/`([^`]+)`/g,'<code style="background:#334155;padding:2px 6px;border-radius:4px;font-size:13px">$1</code>');
+  s=s.replace(/^[-*] (.+)/gm,'<li>$1</li>');
+  s=s.replace(/(<li>.*<\\/li>)/s,function(m){return '<ul>'+m+'</ul>'});
+  s=s.replace(/\\n---\\n/g,'<hr style="border:none;border-top:1px solid #475569;margin:12px 0">');
+  s=s.replace(/\\|(.+)\\|/g,function(m){
+    var cells=m.split('|').filter(c=>c.trim());
+    if(cells.every(c=>/^[-:\\s]+$/.test(c)))return '';
+    var tag=cells.some(c=>/\\*\\*/.test(c))?'th':'td';
+    return '<tr>'+cells.map(c=>'<'+tag+'>'+c.trim()+'</'+tag+'>').join('')+'</tr>';
+  });
+  s=s.replace(/(<tr>.*<\\/tr>)/s,function(m){return '<table>'+m+'</table>'});
+  return s;
+}
+function ask(text){document.getElementById('input').value=text;send();}
+function send(){
+  var input=document.getElementById('input'),btn=document.getElementById('btn'),msgs=document.getElementById('messages');
+  var q=input.value.trim();if(!q)return;
+  var sug=document.getElementById('suggestions');if(sug)sug.remove();
+  msgs.innerHTML+='<div class="msg user">'+q.replace(/</g,'&lt;')+'</div>';
+  msgs.innerHTML+='<div class="msg bot" id="loading"><div class="loading"></div> Analyzing incidents from Jira & Confluence... This may take 30-60 seconds.</div>';
+  input.value='';btn.disabled=true;input.disabled=true;
+  msgs.scrollTop=msgs.scrollHeight;
+  fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})})
+  .then(r=>r.json()).then(d=>{
+    document.getElementById('loading').remove();
+    var html='<div class="msg bot">'+md(d.response||d.detail||JSON.stringify(d));
+    if(d.metadata){
+      html+='<div class="meta">';
+      html+='<span>Jira: '+d.metadata.jira_issues_count+' issues</span>';
+      html+='<span>Confluence: '+d.metadata.confluence_pages_count+' pages</span>';
+      html+='<span>Period: '+d.metadata.time_range_days+' days</span>';
+      html+='</div>';
+    }
+    html+='</div>';
+    msgs.innerHTML+=html;
+    msgs.scrollTop=msgs.scrollHeight;
+  }).catch(e=>{
+    document.getElementById('loading').remove();
+    msgs.innerHTML+='<div class="msg bot" style="border-color:#ef4444">Error: '+e.message+'</div>';
+  }).finally(()=>{btn.disabled=false;input.disabled=false;input.focus();});
+}
+</script>
+</body>
+</html>"""
+
+
+@app.get("/")
+async def index():
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(HTML_PAGE)
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
