@@ -1,0 +1,11 @@
+{
+  "wizard_step": 9,
+  "project_name": "incident-insight-agent",
+  "framework": "basic",
+  "agent_identity": null,
+  "auth_configured": false,
+  "runtime_id": "runtime-fd3ef7da-213b-4ddc-9067-c5c16211e7c4",
+  "memory_id": null,
+  "aip_key_name": null,
+  "cr_repo_name": "111480-abp112143"
+}

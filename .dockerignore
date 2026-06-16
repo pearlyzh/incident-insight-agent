@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.greennode.json
+*.pem
+*.key
+.git
+.agentbase
+__pycache__
+*.pyc
+.claude
+.agentbase/

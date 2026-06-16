@@ -1,0 +1,9 @@
+.env
+.greennode.json
+*.pem
+*.key
+__pycache__
+*.pyc
+.agentbase
+.claude
+.agentbase/
